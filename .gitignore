@@ -1,0 +1,4 @@
+data/*.jsonl
+node_modules/
+.codex
+.codex/

@@ -1,0 +1,18 @@
+[Unit]
+Description=CrabTrap HTTP Write Proxy
+After=network-online.target crabtrap-lite.service
+Wants=network-online.target crabtrap-lite.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/projects/crabtrap-lite
+EnvironmentFile=/root/.config/crabtrap-http-write-proxy.env
+ExecStart=/usr/bin/node /root/projects/crabtrap-lite/src/http-write-proxy.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
