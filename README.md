@@ -99,6 +99,7 @@ Current automated coverage includes:
 - heuristic reviewer regressions
 - fail-open / fail-closed reviewer behavior
 - external reviewer block handling
+- reviewer-findings vs policy-flags separation
 - adapter execution with root-side credentials bundles
 
 ## Example proposal
@@ -265,6 +266,7 @@ Use only when you explicitly want that behavior.
 - truthful + shadow: risky external actions become `observed` for the worker while audit preserves the real decision
 - opaque_accept + soft_gate: risky external actions return `accepted` to the worker while audit preserves the real decision
 - suspicious prompt-injection-like content can escalate even an otherwise safe internal action into `needs_approval`
+- the public API keeps `flags` as a combined compatibility field, while also exposing `reviewerFlags` and `policyFlags` separately
 
 ## Roadmap
 
@@ -313,6 +315,9 @@ Behavior:
 - deterministic policy still runs first
 - heuristic reviewer still runs locally
 - external reviewer can add flags, raise risk, block, or escalate
+- `flags` remains the combined compatibility field
+- `reviewerFlags` contains raw reviewer findings
+- `policyFlags` contains policy-applied escalation/block markers
 - if the external reviewer is unavailable:
   - `open` = continue and mark reviewer failure in flags/audit
   - `closed` = escalate to approval and high risk

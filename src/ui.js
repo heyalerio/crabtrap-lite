@@ -52,6 +52,10 @@ function renderActionDetails(action) {
   const details = {
     internalDecision: action.internalDecision || evaluation.decision || null,
     effectiveDecision: action.status,
+    reviewerRisk: evaluation.reviewerRisk || null,
+    reviewerFlags: evaluation.reviewerFlags || [],
+    policyFlags: evaluation.policyFlags || [],
+    combinedFlags: evaluation.flags || [],
     reviewerMode: reviewer.reviewerMode || null,
     reviewerVerdict: reviewer.verdict || null,
     reviewerConfidence: reviewer.reviewerConfidence || null,

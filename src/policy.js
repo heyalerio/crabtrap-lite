@@ -39,8 +39,11 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
   if (!input?.summary) errors.push('Missing summary');
 
   const reviewer = await reviewProposal(input || {});
+  const reviewerFlags = unique(reviewer.flags || []);
+  const reviewerRisk = reviewer.risk || null;
 
   if (errors.length) {
+    const policyFlags = ['invalid_proposal'];
     return {
       decision: 'blocked',
       effectiveDecision: gateMode === 'shadow' ? 'observed' : 'blocked',
@@ -48,7 +51,10 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
       confidence: 'high',
       errors,
       risk: 'high',
-      flags: unique(['invalid_proposal', ...reviewer.flags]),
+      reviewerFlags,
+      policyFlags,
+      flags: unique([...reviewerFlags, ...policyFlags]),
+      reviewerRisk,
       reviewer,
       gateMode,
       approvalRequired: false
@@ -61,6 +67,7 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
   let confidence = 'medium';
   let risk = 'high';
   let approvalRequired = false;
+  const policyFlags = [];
 
   if (AUTO_ALLOW.has(actionType)) {
     decision = 'allowed';
@@ -75,15 +82,14 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
     approvalRequired = true;
   }
 
-  let flags = [...reviewer.flags];
-
   if (reviewer.suspicious) {
-    flags.push('reviewer_flagged');
-    risk = maxRisk(risk, reviewer.risk || 'high');
+    policyFlags.push('policy_reviewer_flagged');
+    risk = maxRisk(risk, reviewerRisk || 'high');
     if (decision === 'allowed') {
       decision = 'needs_approval';
       reason = 'suspicious_internal_action';
       approvalRequired = true;
+      policyFlags.push('policy_internal_escalation');
     }
   }
 
@@ -91,19 +97,17 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
     decision = 'blocked';
     reason = 'external_reviewer_blocked';
     approvalRequired = false;
-    risk = maxRisk(risk, reviewer.risk || 'high');
-    flags.push('external_reviewer_block');
+    risk = maxRisk(risk, reviewerRisk || 'high');
+    policyFlags.push('policy_external_reviewer_block');
   } else if (reviewer.verdict === 'needs_approval' || reviewer.verdict === 'escalate') {
     if (decision !== 'blocked') {
       decision = 'needs_approval';
       reason = 'external_reviewer_escalated';
       approvalRequired = true;
     }
-    risk = maxRisk(risk, reviewer.risk || 'high');
-    flags.push('external_reviewer_escalation');
+    risk = maxRisk(risk, reviewerRisk || 'high');
+    policyFlags.push('policy_external_reviewer_escalation');
   }
-
-  flags = unique(flags);
 
   let effectiveDecision = decision;
   if (gateMode === 'shadow' && decision !== 'allowed') {
@@ -111,11 +115,12 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
   } else if (
     gateMode === 'soft_gate' &&
     decision === 'blocked' &&
-    flags.includes('reviewer_flagged') &&
-    !flags.includes('external_reviewer_block')
+    policyFlags.includes('policy_reviewer_flagged') &&
+    !policyFlags.includes('policy_external_reviewer_block')
   ) {
     effectiveDecision = 'needs_approval';
     approvalRequired = true;
+    policyFlags.push('policy_soft_gate_downgrade');
   }
 
   return {
@@ -124,7 +129,10 @@ export async function evaluateProposal(input, { gateMode = 'soft_gate' } = {}) {
     reason,
     confidence,
     risk,
-    flags,
+    reviewerFlags,
+    policyFlags: unique(policyFlags),
+    flags: unique([...reviewerFlags, ...policyFlags]),
+    reviewerRisk,
     reviewer,
     gateMode,
     approvalRequired
@@ -149,7 +157,10 @@ export function toWorkerReceipt({ proposalId, evaluation, receiptMode }) {
     reason: evaluation.reason,
     confidence: evaluation.confidence,
     risk: evaluation.risk,
+    reviewerRisk: evaluation.reviewerRisk || null,
     flags: evaluation.flags,
+    reviewerFlags: evaluation.reviewerFlags || [],
+    policyFlags: evaluation.policyFlags || [],
     approvalRequired: evaluation.approvalRequired,
     reviewerMode: evaluation.reviewer?.reviewerMode || 'none',
     reviewerVerdict: evaluation.reviewer?.verdict || null

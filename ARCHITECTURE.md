@@ -58,8 +58,14 @@ Reviewer chain:
 - hard policy
 - local heuristic review
 - optional external/LLM review
+- policy application layer that converts findings into final decisions
 
 The LLM reviewer is additive, not primary control.
+
+Evaluation output keeps:
+- `reviewerFlags` for raw reviewer findings
+- `policyFlags` for policy-applied escalation/block markers
+- `flags` as a combined compatibility field
 
 ## Why action-level first
 
